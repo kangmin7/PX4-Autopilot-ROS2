@@ -8,7 +8,6 @@ link
 slam
 navigation
 exploration
-...
 
 
 PROBLEMS AND SOLUTION:
@@ -296,3 +295,9 @@ to
 ros2 topic echo /scan | grep -A 2 stamp
 
 
+26. create ssh key
+ssh-keygen -t ed25519 -C "kangmin7@github"
+cat ~/.ssh/id_ed25519.pub
+GitHub → Settings → SSH and GPG keys → New SSH key
+git remote remove origin
+git remote add origin git@github.com:kangmin7/PX4-Autopilot-ROS2.git
