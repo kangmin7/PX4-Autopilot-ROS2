@@ -1,0 +1,295 @@
+PROJECT RUN LIST
+
+px4
+mavros
+qgc
+scan
+link
+slam
+
+
+PROBLEMS AND SOLUTION:
+
+turtlebot4 gz dependancy error
+solution: 
+sudo apt remove ros-humble-ros-gzharmonic-*
+sudo apt autoremove
+sudo apt update
+sudo apt install ros-humble-turtlebot4-simulator ros-humble-irobot-create-nodes
+
+mavros outputs:
+[mavros.guided_target]: PositionTargetGlobal failed because no origin
+solution:
+commander set_ekf_origin 47.397742 8.545593 488.0
+or
+export PX4_HOME_LAT=47.397742
+export PX4_HOME_LON=8.545593
+export PX4_HOME_ALT=488.0
+
+ros2 launch slam_toolbox online_async_launch.py
+outputs:
+[async_slam_toolbox_node-1] [INFO] [1765866950.381376804] [slam_toolbox]: Message Filter dropping message: frame 'link' at time 12624.088 for reason 'discarding message because the queue is full'
+solution: ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 base_link link
+and odom->base_link->link
+
+then outputs:
+[async_slam_toolbox_node-1] [INFO] [1766116111.486694936] [slam_toolbox]: Message Filter dropping message: frame 'link' at time 4206.148 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+
+
+ros2 run ros_gz_bridge parameter_bridge "/scan@sensor_msgs/msg/LaserScan@gz.msgs.LaserScan"
+outputs:
+Unknown message type [9].
+solution:
+gz sim --version
+Gazebo Sim, version 8.10.0 (Harmonic)
+sudo apt install ros-humble-ros-gzharmonic
+
+
+reliability issue with local_position_v1
+solution:
+px4_qos = QoSProfile(
+    history=HistoryPolicy.KEEP_LAST,
+    depth=1,
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    durability=DurabilityPolicy.VOLATILE
+)
+
+ros2 topic echo /fmu/out/vehicle_local_position_v1
+[RTPS_READER_HISTORY Error] Change payload size of '220' bytes is larger than the history payload size of '219' bytes and cannot be resized. -> Function can_change_be_added_nts
+solution: removed px4_msgs in ros2_px4
+
+not arming+takeoff (offboard, arm, takeoff using position setpoint)
+solution: open QGC
+
+make px4_sitl gz_x500 PX4_GZ_WORLD=husarion_office_empty opens Gazebo without px4 drone, pending.
+solution: <world name='husarion_office_empty'> in husarion_office_empty.sdf
+
+
+
+0. ROS2
+https://www.theconstruct.ai/ubuntu-20-04-ros2-foxy-install-tutorial/
+https://ban2aru.tistory.com/100
+
+- MAVROS
+https://docs.px4.io/v1.15/ko/ros/mavros_installation.html#ros-noetic-(ubuntu-22.04)
+
+1. WIFI MODULE
+sudo apt install git
+sudo apt install dkms
+sudo apt update
+sudo apt upgrade
+
+git clone https://github.com/cilynx/rtl88x2bu.git
+cd rtl88x2bu
+VER=$(sed -n 's/\PACKAGE_VERSION="\(.*\)"/\1/p' dkms.conf)
+sudo rsync -rvhP ./ /usr/src/rtl88x2bu-5.8.7.1
+sudo dkms add -m rtl88x2bu -v 5.8.7.1
+sudo dkms build -m rtl88x2bu -v 5.8.7.1
+sudo dkms install -m rtl88x2bu -v 5.8.7.1
+sudo modprobe 88x2bu
+
+
+2. Korean
+20.04:
+https://velog.io/@yun_in/Ubuntu-Ubuntu-20.04-%ED%95%9C%EA%B8%80-%EC%84%A4%EC%B9%98
+22.04:
+https://staraube.tistory.com/105
+
+
+3. PX4
+- ROS1:
+git clone https://github.com/PX4/PX4-Autopilot.git --recursive
+bash ./PX4-Autopilot/Tools/setup/ubuntu.sh
+
+make px4_sitl gazebo-classic
+make clean
+
+DONT_RUN=1 make px4_sitl_default gazebo-classic
+source ~/catkin_ws/devel/setup.bash    # (optional)
+source Tools/simulation/gazebo-classic/setup_gazebo.bash $(pwd) $(pwd)/build/px4_sitl_default
+export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$(pwd)
+export ROS_PACKAGE_PATH=$ROS_PACKAGE_PATH:$(pwd)/Tools/simulation/gazebo-classic/sitl_gazebo-classic
+roslaunch px4 posix_sitl.launch
+
+roslaunch mavros px4.launch fcu_url:="udp://:14540@127.0.0.1:14557"
+
+- ROS2:
+MicroXRCEAgent udp4 -p 8888
+make px4_sitl gz_x500
+
+4. Camera
+rosrun usb_cam usb_cam_node _video_device:=/dev/video0 _pixel_format:=yuyv _io_method:=mmap _image_width:=640 _image_height:=480 _framerate:=30
+
+
+5. Git
+git init
+git add .
+git commit -m '...'
+git log
+git checkout ...
+git branch
+git branch -M (new name)
+
+git remote add origin https://github.com/kangmin7/test.git
+git push -u origin main # or master
+git push
+
+(If not allowed)
+git remote remove origin
+git remote add origin https://github.com/kangmin7/turtlebot3.git
+git push -u origin main
+
+(For forked projects)
+git remote -v
+git remote set-url origin https://github.com/kangmin7/PX4-Autopilot.git
+git push origin main
+
+
+6. Autocompletion problem
+sudo apt install ros-noetic-rosbash
+
+
+7. Key, drag not working
+setxkbmap -layout us
+
+
+8. cmake version
+/usr/lib/x86_64-linux-gnu/cmake/pcl/PCLConfig.cmake:40:cmake_policy(VERSION 3.5)
+find . -type f -name "CMakeLists.txt" -exec sed -i -E 's/cmake_minimum_required\(VERSION 2\.[0-9]+(\.[0-9]+)?\)/cmake_minimum_required(VERSION 3.5)/g' {} +
+
+-DCMAKE_POLICY_VERSION_MINIMUM=3.5
+make px4_sitl gazebo CMAKE_ARGS="-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
+
+9. Find text
+grep -rnw -e 'text'
+
+Find running gz:
+ps -ef | grep gz
+
+
+10. TF and topic
+rosrun tf static_transform_publisher 0 0 0.1 0 0 0 base_link laser 100
+rosrun tf static_transform_publisher 0 0 0 0 0 0 base_footprint base_link 100
+rosrun odom odom_tf_broadcaster.py
+
+show tf tree:
+rosrun rqt_tf_tree rqt_tf_tree (tftree)
+rosrun tf view_frames 
+
+change topic name:
+roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch cmd_vel:=/robot1/cmd_vel
+rosrun topic_tools relay /cmd_vel /robot1/cmd_vel
+
+
+11. GZ
+gz joint -m iris -j rotor_0_joint --pos-t 0 --pos-p 1
+
+
+12. Matlab messages
+path = '/home/kangmin7/MATLAB/MATLAB_msgs'
+rosgenmsg(path)
+
+sudo apt install python3.9 python3.9-dev python3.9-venv
+
+
+13. SLAM
+roslaunch turtlebot3_gazebo turtlebot3_world.launch
+roslaunch turtlebot3_slam turtlebot3_slam.launch slam_methods:=gmapping
+roslaunch turtlebot3_navigation turtlebot3_navigation.launch
+roslaunch explore_lite explore.launch
+
+roslaunch turtlebot3_navigation turtlebot3_navigation.launch map_file:=$HOME/map.yaml
+roslaunch turtlebot3_teleop turtlebot3_teleop_key.launch
+rosrun map_server map_saver -f ~/map
+
+update: 
+rviz false for slam
+base_footprint to base_link
+
+
+14. Remove password
+sudo passwd -d (username)
+
+
+15. Windows time change prevention
+sudo timedatectl set-local-rtc 1
+
+
+16. Gazebo11 (classic) in ubuntu 22.04
+https://gazebosim.org/docs/latest/install_gz11_side_by_side/
+
+
+17. check installed packages
+apt list --installed | grep ignition-fortress
+
+
+18. Create ros files
+ros2 pkg create px4_control --build-type ament_python
+ros2 pkg create px4_control --build-type ament_cmake
+ros2 pkg create px4_control --build-type ament_cmake --dependencies rclcpp px4_msgs
+
+
+19. Build specific package
+colcon build --packages-select px4_control
+
+
+20. takeoff
+commander takeoff
+commander mode offboard
+commander land
+
+without qgc:
+param set NAV_DLL_ACT 0 (fails upon reboot)
+
+
+21. Reverse search
+ctrl+R (multiple times for older searches)
+
+
+22. Gazebo topic
+add topic to lidar model:
+<topic>scan</topic>
+
+check info and echo:
+gz topic -i --topic /scan
+gz topic -e --topic /scan
+
+add to ros2 topic:
+ros2 run ros_gz_bridge parameter_bridge "/scan@sensor_msgs/msg/LaserScan@gz.msgs.LaserScan"
+
+
+23. ros2 build using symlink
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --symlink-install --cmake-clean-cache
+
+
+24. map -> base_link tf
+px4_config.yaml in mavros
+
+odom -> base_link tf
+# local_position
+/**/local_position:
+  ros__parameters:
+    frame_id: "map"
+    tf.send: false
+    tf.frame_id: "map"
+    tf.child_frame_id: "base_link"
+    tf.send_fcu: false
+    
+to
+
+# local_position
+/**/local_position:
+  ros__parameters:
+    frame_id: "odom"
+    tf.send: true
+    tf.frame_id: "odom"
+    tf.child_frame_id: "base_link"
+    tf.send_fcu: false
+    
+    
+25. check timestamp
+ros2 topic echo /scan | grep -A 2 stamp
+
+
