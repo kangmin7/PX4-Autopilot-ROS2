@@ -6,6 +6,8 @@ qgc
 scan
 link
 slam
+navigation
+exploration
 
 
 PROBLEMS AND SOLUTION:
